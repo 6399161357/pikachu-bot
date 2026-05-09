@@ -30,7 +30,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TOKEN = os.environ.get('8601344819:AAE1nBCUJt74qq3i44Dl0l4r4_SBzcN0VIc', '')
+TOKEN = "8601344819:AAE1nBCUJt74qq3i44Dl0l4r4_SBzcN0VIc"
 
 OWNERS = ['light_speedy', 'alenachistyakova_m', 'speedy_fighter', 'its_aanya_07']
 
