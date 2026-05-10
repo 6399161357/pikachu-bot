@@ -1679,6 +1679,18 @@ async def unpin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─── CARD GAME ────────────────────────────────────────────────────────────────
 
 
+def make_cards_for_sum(total_sum):
+    while True:
+        a = random.randint(1, min(10, total_sum - 3))
+        b = random.randint(1, min(10, total_sum - a - 2))
+        c = random.randint(1, min(10, total_sum - a - b - 1))
+        d = total_sum - a - b - c
+        if 1 <= d <= 10:
+            cards = [a, b, c, d]
+            random.shuffle(cards)
+            return cards
+
+
 async def card_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
 
