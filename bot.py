@@ -639,50 +639,82 @@ async def protect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     user = get_user(u.id)
 
+    # Agar argument nahi diya
     if not context.args:
         await update.message.reply_text(
-            "❌ Use: `/protect 1d` or `/protect 2d` (premium)\n\n"
-            "💰 1d = $400 | 2d = $1000 (💓 premium only)",
+            "❌ Use: /protect 1d or /protect 2d\n\n"
+            "💰 1d = $400\n"
+            "💓 2d = $1000 (Premium Only)",
             parse_mode=ParseMode.MARKDOWN
         )
         return
 
     days_str = context.args[0].lower()
+
+    # Sirf 1d aur 2d allow
     if days_str == '1d':
         days, cost = 1, 400
-    elif days_str == '2d':
-        if not user.get('is_premium'):
-            await update.message.reply_text("❌ 2d protection is only for 💓 Premium users! Use /pay")
-            return
-        days, cost = 2, 1000
-    elif days_str == '3d':
-        if not user.get('is_premium'):
-            await update.message.reply_text("❌ 3d protection is only for 💓 Premium users! Use /pay")
-            return
-        days, cost = 3, 2000
-    else:
-        await update.message.reply_text("❌ Use: `/protect 1d` or `/protect 2d`", parse_mode=ParseMode.MARKDOWN)
-        return
 
-    if user['balance'] < cost:
+    elif days_str == '2d':
+        # 2d sirf premium users ke liye
+        if not user.get('is_premium'):
+            await update.message.reply_text(
+                "❌ 2d protection is only for 💓 Premium users! Use /pay"
+            )
+            return
+
+        days, cost = 2, 1000
+
+    else:
         await update.message.reply_text(
-            f"❌ Insufficient balance!\n💰 Need: {fmt(cost)} | Have: {fmt(user['balance'])}"
+            "❌ Use only: /protect 1d or /protect 2d",
+            parse_mode=ParseMode.MARKDOWN
         )
         return
 
     now = int(time.time())
-    current_prot = max(now, user.get('protection_until', now))
-    new_prot = current_prot + (days * 86400)
-    update_user(u.id, balance=user['balance'] - cost, protection_until=new_prot)
+
+    # Agar pehle se protection active hai
+    protection_until = user.get('protection_until', 0)
+
+    if protection_until > now:
+        remaining = protection_until - now
+        remaining_days = round(remaining / 86400, 1)
+
+        await update.message.reply_text(
+            f"❌ Your protection is already active!\n\n"
+            f"⏰ Remaining: *{remaining_days} day(s)*\n"
+            f"⚠️ New protection tabhi le sakte ho jab current protection khatam ho jaye.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
+    # Balance check
+    if user['balance'] < cost:
+        await update.message.reply_text(
+            f"❌ Insufficient balance!\n"
+            f"💰 Need: {fmt(cost)} | Have: {fmt(user['balance'])}"
+        )
+        return
+
+    # New protection activate
+    new_prot = now + (days * 86400)
+
+    update_user(
+        u.id,
+        balance=user['balance'] - cost,
+        protection_until=new_prot
+    )
 
     p = prefix(user)
+
     await update.message.reply_text(
-        f"🛡️ {p} *{u.first_name}* ɴᴇ *{days}d* protection liya!\n"
+        f"🛡️ {p} *{u.first_name}* ne *{days}d* protection liya!\n\n"
         f"💰 Cost: {fmt(cost)}\n"
         f"⏰ Protection active for *{days} day(s)*!",
         parse_mode=ParseMode.MARKDOWN
     )
-
+    
 
 async def give_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
@@ -767,22 +799,59 @@ async def topkill(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
+
+    # Agar group/chat mein command use hui
+    if update.effective_chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "💌 Open Bot DM",
+                    url="https://t.me/Pikachu_ibot"
+                )
+            ]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            "💎 *Premium Purchase*\n\n"
+            "To buy premium, please open the bot in DM first.",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup
+        )
+        return
+
+    # Agar DM mein /pay use kare
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "👑 Owner",
+                url="https://t.me/light_speedy"
+            )
+        ]
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     await update.message.reply_text(
-        "👑 *Pʀᴇᴍɪᴜᴍ Sᴜʙꜱᴄʀɪᴘᴛɪᴏɴ* 💓\n\n"
-        "💰 *Price:* Just ₹20/month!\n\n"
-        "✨ *Benefits:*\n"
-        "• 💓 Premium emoji prefix\n"
-        "• 💰 $5000 daily reward (normal: $2000)\n"
-        "• ⚔️ 400 kill/rob limit (normal: 200)\n"
-        "• 💸 5% tax (normal: 10%)\n"
-        "• 🛡️ 2d protection available\n"
-        "• 🔍 /check command unlock\n"
-        "• 🎮 Mini game 5% tax\n"
-        "• 🎨 Custom emoji (/setemoji)\n"
-        "• 🏅 Premium look in leaderboards\n\n"
-        "📩 *DM to get Premium:* @light_speedy\n"
-        "💳 Pay ₹20 via UPI/Paytm and send the screenshot!",
-        parse_mode=ParseMode.MARKDOWN
+        "╔══❖•ೋ° °ೋ•❖══╗\n"
+        "      👑 *PREMIUM ACCESS* 👑\n"
+        "╚══❖•ೋ° °ೋ•❖══╝\n\n"
+
+        "✨ Upgrade your experience with premium benefits.\n\n"
+
+        "💸 *Premium Price:* ₹20 Only\n\n"
+
+        "📩 To purchase premium,\n"
+        "contact the owner directly.\n\n"
+
+        "⚡ Fast Response\n"
+        "🔒 Trusted Payment\n"
+        "🎖 Instant Premium Access\n\n"
+
+        "👇 Click the button below to contact owner.",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=reply_markup
     )
 
 
@@ -913,47 +982,165 @@ async def set_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
+
     u = update.effective_user
     user = get_user(u.id)
+
+    # Premium check
     if not user.get('is_premium'):
-        await update.message.reply_text("❌ This command is for 💓 Premium users only! /pay")
+        await update.message.reply_text(
+            "❌ This command is for 💓 Premium users only!\nUse /pay",
+            parse_mode=ParseMode.MARKDOWN
+        )
         return
 
+    # Target user find
+    target = None
+
+    # Reply method
     if update.message.reply_to_message:
         target = update.message.reply_to_message.from_user
-        victim = get_user(target.id, name=target.full_name, username=target.username or '')
-        name = target.first_name
-    else:
-        victim = user
-        name = u.first_name
+
+    # Username/ID method
+    elif context.args:
+        arg = context.args[0]
+
+        # Username
+        if arg.startswith("@"):
+            target_name = arg.replace("@", "")
+            target = type("obj", (object,), {
+                "id": 0,
+                "first_name": target_name,
+                "full_name": target_name,
+                "username": target_name
+            })
+
+        # ID
+        elif arg.isdigit():
+            target = type("obj", (object,), {
+                "id": int(arg),
+                "first_name": f"User {arg}",
+                "full_name": f"User {arg}",
+                "username": ""
+            })
+
+    # Agar target nahi mila
+    if not target:
+        await update.message.reply_text(
+            "❌ Reply to a user or use:\n"
+            "`/check @username`\n"
+            "`/check user_id`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
+    # Group mein use hua
+    if update.effective_chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+
+        # Victim data
+        victim = get_user(
+            target.id,
+            name=target.full_name,
+            username=target.username or ''
+        )
+
+        now = int(time.time())
+        prot = victim.get('protection_until', 0)
+
+        if prot > now:
+            remaining = prot - now
+            h = remaining // 3600
+            m = (remaining % 3600) // 60
+
+            dm_text = (
+                f"🛡️ *Protection Status*\n\n"
+                f"👤 User: *{target.first_name}*\n"
+                f"✅ Protection Active\n"
+                f"⏰ Remaining: {h}h {m}m"
+            )
+        else:
+            dm_text = (
+                f"🛡️ *Protection Status*\n\n"
+                f"👤 User: *{target.first_name}*\n"
+                f"❌ No Active Protection"
+            )
+
+        # DM bhejne ki koshish
+        try:
+            await context.bot.send_message(
+                chat_id=u.id,
+                text=dm_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "🔍 Open DM & Check",
+                        url="https://t.me/Pikachu_ibot"
+                    )
+                ]
+            ]
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                "✅ Protection details sent to your DM.",
+                reply_markup=reply_markup
+            )
+
+        except:
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "💌 Open Bot DM",
+                        url="https://t.me/Pikachu_ibot"
+                    )
+                ]
+            ]
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                "❌ First start the bot in DM to use this command.",
+                reply_markup=reply_markup
+            )
+
+        return
+
+    # DM mein direct command use hui
+    victim = get_user(
+        target.id,
+        name=target.full_name,
+        username=target.username or ''
+    )
 
     now = int(time.time())
     prot = victim.get('protection_until', 0)
+
     if prot > now:
         remaining = prot - now
         h = remaining // 3600
         m = (remaining % 3600) // 60
-        text = f"🛡️ *{name}* is protected!\n⏰ {h}h {m}m remaining"
-    else:
-        text = f"❌ *{name}* has no active protection!"
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
-    # Regular (non-custom) emoji
-    parts = msg_text.split(None, 1)
-    if len(parts) < 2 or not parts[1].strip():
-        await update.message.reply_text(
-            "❌ Send an emoji!\n<code>/setemoji &lt;emoji&gt;</code>\n\n"
-            "✨ You can also set a Telegram Premium animated emoji — just send it after the command!",
-            parse_mode=ParseMode.HTML
+
+        text = (
+            f"🛡️ *Protection Status*\n\n"
+            f"👤 User: *{target.first_name}*\n"
+            f"✅ Protection Active\n"
+            f"⏰ Remaining: {h}h {m}m"
         )
-        return
+    else:
+        text = (
+            f"🛡️ *Protection Status*\n\n"
+            f"👤 User: *{target.first_name}*\n"
+            f"❌ No Active Protection"
+        )
 
-    emoji = parts[1].strip()
-    update_user(u.id, premium_emoji=emoji)
     await update.message.reply_text(
-        f"✅ Your prefix is now {escape_html(emoji)}!",
-        parse_mode=ParseMode.HTML
+        text,
+        parse_mode=ParseMode.MARKDOWN
     )
-
+    
 
 # ─── CLAIM ────────────────────────────────────────────────────────────────────
 
@@ -1491,56 +1678,120 @@ async def unpin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ─── CARD GAME ────────────────────────────────────────────────────────────────
 
-def make_cards_for_sum(total_sum):
-    while True:
-        a = random.randint(1, min(10, total_sum - 3))
-        b = random.randint(1, min(10, total_sum - a - 2))
-        c = random.randint(1, min(10, total_sum - a - b - 1))
-        d = total_sum - a - b - c
-        if 1 <= d <= 10:
-            cards = [a, b, c, d]
-            random.shuffle(cards)
-            return cards
-
 
 async def card_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
+
     u = update.effective_user
     chat_id = update.effective_chat.id
 
     if update.effective_chat.type == ChatType.PRIVATE:
         await update.message.reply_text("❌ Card game can only be played in groups!")
         return
+
     if chat_id in card_games:
         await update.message.reply_text("❌ A card game is already running in this group!")
         return
 
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Use:\n`/card <amount>`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
+    try:
+        amount = int(context.args[0])
+    except:
+        await update.message.reply_text("❌ Invalid amount!")
+        return
+
+    if amount <= 0:
+        await update.message.reply_text("❌ Amount must be greater than 0!")
+        return
+
+    host = get_user(u.id)
+
+    if host['balance'] < amount:
+        await update.message.reply_text(
+            f"❌ Insufficient balance!\nNeed: {fmt(amount)}"
+        )
+        return
+
+    update_user(u.id, balance=host['balance'] - amount)
+
     card_games[chat_id] = {
         'creator': u.id,
-        'players': {},
+        'players': {
+            u.id: {
+                'name': u.first_name,
+                'bet': amount
+            }
+        },
         'round': 0,
         'started': False,
-        'bet': 0,
-        'pot': 0,
+        'bet': amount,
+        'pot': amount,
         'total_sum': random.randint(16, 28),
         'round_moves': {},
         'scores': {},
+        'turn_order': [],
+        'turn_index': 0
     }
 
     await update.message.reply_text(
-        f"🎮 *Cᴀʀᴅ Gᴀᴍᴇ Sᴛᴀʀᴛ!* 🃏\n\n"
-        f"👤 Host: *{u.first_name}*\n"
-        f"💰 Join: `/bet <amount>`\n"
-        f"⏰ Join within 60 seconds!\n\n"
-        f"📋 *Rules:*\n"
-        f"• 4 hidden cards (A, B, C, D)\n"
-        f"• Use `/flip a/b/c/d` to play\n"
-        f"• Highest card wins the round\n"
-        f"• 4 rounds — most wins = winner! 🏆",
-        parse_mode=ParseMode.MARKDOWN
+        f"🃏 *CARD GAME CREATED*\n\n"
+        f"👤 Host: {u.mention_markdown_v2()}\n"
+        f"💰 Bet Amount: {fmt(amount)}\n\n"
+        f"⚡ Join using:\n`/bet {amount}`\n\n"
+        f"⏰ Join Time: 90 Seconds",
+        parse_mode=ParseMode.MARKDOWN_V2
     )
-    asyncio.create_task(start_card_after_delay(context, chat_id))
-    asyncio.create_task(schedule_delete(context, chat_id, update.message.message_id))
+
+    asyncio.create_task(card_join_timer(context, chat_id))
+
+
+async def card_join_timer(context, chat_id):
+    timings = [90, 60, 40, 20]
+
+    for t in timings:
+
+        game = card_games.get(chat_id)
+
+        if not game or game['started']:
+            return
+
+        await context.bot.send_message(
+            chat_id,
+            f"⏰ *{t} seconds left!*\n"
+            f"Use `/bet {game['bet']}` to join the card game!",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+        if t == 90:
+            await asyncio.sleep(30)
+        elif t == 60:
+            await asyncio.sleep(20)
+        elif t == 40:
+            await asyncio.sleep(20)
+        elif t == 20:
+            await asyncio.sleep(20)
+
+    game = card_games.get(chat_id)
+
+    if not game or game['started']:
+        return
+
+    if len(game['players']) < 2:
+        del card_games[chat_id]
+
+        await context.bot.send_message(
+            chat_id,
+            "❌ Card game cancelled!\nNeed at least 2 players."
+        )
+        return
+
+    await begin_card_game(context, chat_id)
 
 
 async def start_card_after_delay(context, chat_id):
@@ -1558,42 +1809,73 @@ async def start_card_after_delay(context, chat_id):
 
 async def begin_card_game(context, chat_id):
     game = card_games[chat_id]
+
     game['started'] = True
     game['round'] = 1
+
     total = game['total_sum']
 
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "🃏 Check Cards",
+                url="https://t.me/Pikachu_ibot"
+            )
+        ]
+    ])
+
     for uid in game['players']:
+
         cards = make_cards_for_sum(total)
-        game['players'][uid]['cards'] = {'a': cards[0], 'b': cards[1], 'c': cards[2], 'd': cards[3]}
+
+        game['players'][uid]['cards'] = {
+            'a': cards[0],
+            'b': cards[1],
+            'c': cards[2],
+            'd': cards[3]
+        }
+
         game['players'][uid]['used'] = []
+
         game['scores'][uid] = 0
+
         try:
             await context.bot.send_message(
                 uid,
-                f"🃏 *Your Cards:*\n"
+                f"🃏 *YOUR SECRET CARDS*\n\n"
                 f"🅰️ A = {cards[0]}\n"
                 f"🅱️ B = {cards[1]}\n"
-                f"🅾️ C = {cards[2]}\n"
-                f"🔷 D = {cards[3]}\n\n"
-                f"Sum = {total} (all players share the same card sum!)\n"
-                f"Use `/flip a/b/c/d` in the group!",
+                f"🅲 C = {cards[2]}\n"
+                f"🅳 D = {cards[3]}\n\n"
+                f"🎯 Total Sum = {total}\n\n"
+                f"Use `/flip a/b/c/d` in group!",
                 parse_mode=ParseMode.MARKDOWN
             )
-        except Exception:
+        except:
             pass
 
-    player_list = '\n'.join(f"• {d['name']}" for d in game['players'].values())
+    player_list = "\n".join(
+        f"• {x['name']}" for x in game['players'].values()
+    )
+
+    game['turn_order'] = list(game['players'].keys())
+    first_uid = game['turn_order'][0]
+    first_name = game['players'][first_uid]['name']
+
     await context.bot.send_message(
         chat_id,
-        f"🎮 *Card Game Started!* 🃏\n\n"
+        f"🎮 *CARD GAME STARTED!*\n\n"
         f"👥 Players:\n{player_list}\n\n"
         f"💰 Pot: {fmt(game['pot'])}\n\n"
-        f"🔔 *Round 1/4* — Use `/flip a/b/c/d`!\n"
-        f"⏰ 60 seconds!",
-        parse_mode=ParseMode.MARKDOWN
+        f"📩 Card details sent to your DM.\n\n"
+        f"🎯 Round 1/4\n"
+        f"👉 Turn: *{first_name}*\n"
+        f"Use `/flip a/b/c/d`",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=keyboard
     )
-    asyncio.create_task(card_round_timer(context, chat_id))
 
+    asyncio.create_task(card_round_timer(context, chat_id))
 
 async def card_round_timer(context, chat_id):
     await asyncio.sleep(60)
@@ -1655,42 +1937,84 @@ async def bet_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def flip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
+
     u = update.effective_user
     chat_id = update.effective_chat.id
 
     game = card_games.get(chat_id)
+
     if not game or not game['started']:
-        await update.message.reply_text("❌ No card game is running!")
+        await update.message.reply_text("❌ No card game running!")
         return
+
     if u.id not in game['players']:
         await update.message.reply_text("❌ You are not in this game!")
         return
-    if not context.args or context.args[0].lower() not in ['a', 'b', 'c', 'd']:
-        await update.message.reply_text("❌ Use `/flip a`, `b`, `c`, or `d`", parse_mode=ParseMode.MARKDOWN)
+
+    current_turn_uid = game['turn_order'][game['turn_index']]
+
+    if u.id != current_turn_uid:
+        turn_name = game['players'][current_turn_uid]['name']
+
+        await update.message.reply_text(
+            f"⏳ Wait for your turn!\n"
+            f"👉 Current turn: *{turn_name}*",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Use `/flip a/b/c/d`",
+            parse_mode=ParseMode.MARKDOWN
+        )
         return
 
     card_letter = context.args[0].lower()
+
+    if card_letter not in ['a', 'b', 'c', 'd']:
+        await update.message.reply_text("❌ Invalid card!")
+        return
+
     player = game['players'][u.id]
 
-    if card_letter in player.get('used', []):
-        await update.message.reply_text("❌ This card has already been used! Choose another.")
-        return
-    if u.id in game.get('round_moves', {}):
-        await update.message.reply_text("❌ You have already flipped this round!")
+    if card_letter in player['used']:
+        await update.message.reply_text(
+            "❌ Card already used!"
+        )
         return
 
-    if 'round_moves' not in game:
-        game['round_moves'] = {}
+    value = player['cards'][card_letter]
+
+    player['used'].append(card_letter)
+
     game['round_moves'][u.id] = card_letter
 
     await update.message.reply_text(
-        f"🃏 *{u.first_name}* flipped a card! ⏳ Waiting...",
+        f"🃏 *{u.first_name}* flipped "
+        f"*{card_letter.upper()}* = *{value}*",
         parse_mode=ParseMode.MARKDOWN
     )
-    asyncio.create_task(schedule_delete(context, chat_id, update.message.message_id))
 
-    if len(game['round_moves']) == len(game['players']):
+    game['turn_index'] += 1
+
+    if game['turn_index'] >= len(game['turn_order']):
+
+        game['turn_index'] = 0
+
         await process_card_round(context, chat_id)
+
+        return
+
+    next_uid = game['turn_order'][game['turn_index']]
+    next_name = game['players'][next_uid]['name']
+
+    await context.bot.send_message(
+        chat_id,
+        f"👉 Now turn of *{next_name}*\n"
+        f"Use `/flip a/b/c/d`",
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 
 async def process_card_round(context, chat_id, auto=False):
