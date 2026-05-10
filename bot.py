@@ -1889,6 +1889,59 @@ async def begin_card_game(context, chat_id):
 
     asyncio.create_task(card_round_timer(context, chat_id))
 
+    for uid in game['players']:
+
+        cards = make_cards_for_sum(total)
+
+        game['players'][uid]['cards'] = {
+            'a': cards[0],
+            'b': cards[1],
+            'c': cards[2],
+            'd': cards[3]
+        }
+
+        game['players'][uid]['used'] = []
+
+        game['scores'][uid] = 0
+
+        try:
+            await context.bot.send_message(
+                uid,
+                f"🃏 *YOUR SECRET CARDS*\n\n"
+                f"🅰️ A = {cards[0]}\n"
+                f"🅱️ B = {cards[1]}\n"
+                f"🅲 C = {cards[2]}\n"
+                f"🅳 D = {cards[3]}\n\n"
+                f"🎯 Total Sum = {total}\n\n"
+                f"Use `/flip a/b/c/d` in group!",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+
+    player_list = "\n".join(
+        f"• {x['name']}" for x in game['players'].values()
+    )
+
+    game['turn_order'] = list(game['players'].keys())
+    first_uid = game['turn_order'][0]
+    first_name = game['players'][first_uid]['name']
+
+    await context.bot.send_message(
+        chat_id,
+        f"🎮 *CARD GAME STARTED!*\n\n"
+        f"👥 Players:\n{player_list}\n\n"
+        f"💰 Pot: {fmt(game['pot'])}\n\n"
+        f"📩 Card details sent to your DM.\n\n"
+        f"🎯 Round 1/4\n"
+        f"👉 Turn: *{first_name}*\n"
+        f"Use `/flip a/b/c/d`",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=keyboard
+    )
+
+    asyncio.create_task(card_round_timer(context, chat_id))
+
 async def card_round_timer(context, chat_id):
     await asyncio.sleep(60)
     game = card_games.get(chat_id)
