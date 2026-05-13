@@ -295,9 +295,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "📢 Channel",
                 url="https://t.me/anonymous_rides"
             ),
-            InlineKeyboardButton(
-                { text: "❓ Help",    callback_data: "help" },
-        ],
         [
             InlineKeyboardButton(
                 "➕ Add Me To Your Group",
