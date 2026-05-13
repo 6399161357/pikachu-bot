@@ -296,9 +296,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 url="https://t.me/anonymous_rides"
             ),
             InlineKeyboardButton(
-                "❓ Help",
-                callback_data="help_menu"
-            )
+                { text: "❓ Help",    callback_data: "help" },
         ],
         [
             InlineKeyboardButton(
