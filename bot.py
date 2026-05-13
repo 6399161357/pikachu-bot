@@ -316,12 +316,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
+    
     async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "help_menu":
         await help_command(update, context)
+        
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
