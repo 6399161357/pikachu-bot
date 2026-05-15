@@ -9,7 +9,7 @@ import logging
 from pymongo import MongoClient
 import os
 
-client = MongoClient(os.getenv("MONGO_DB_URI"))
+client = MongoClient(os.getenv("mongodb+srv://jaybot:chaudhary456@cluster0.tk6lxew.mongodb.net/?appName=Cluster0"))
 
 db = client["telegram_bot"]
 
@@ -401,17 +401,43 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     asyncio.create_task(schedule_delete(context, update.effective_chat.id, update.message.message_id))
 
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # Only allow in DM
+    if update.effective_chat.type != "private":
+
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "🎁 Claim Daily In DM",
+                    url=f"https://t.me/{context.bot.username}?start=daily"
+                )
+            ]
+        ])
+
+        await update.message.reply_text(
+            "❌ Daily can only be used in bot DM!",
+            reply_markup=keyboard
+        )
+        return
+
     register_user(update)
+
     u = update.effective_user
     user = get_user(u.id)
+
     now = int(time.time())
     last = user.get('daily_last', 0)
 
     if now - last < 86400:
+
         remaining = 86400 - (now - last)
+
         h = remaining // 3600
         m = (remaining % 3600) // 60
+
         await update.message.reply_text(
             f"⏰ *Not yet!*\n⏳ Come back in *{h}h {m}m*! 😅",
             parse_mode=ParseMode.MARKDOWN
@@ -419,12 +445,21 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     amount = get_daily_amount(user)
+
     xp_gain = 100 if user.get('is_premium') else 50
+
     new_bal = user['balance'] + amount
     new_xp = user['xp'] + xp_gain
-    update_user(u.id, balance=new_bal, xp=new_xp, daily_last=now)
+
+    update_user(
+        u.id,
+        balance=new_bal,
+        xp=new_xp,
+        daily_last=now
+    )
 
     p = prefix(user)
+
     await update.message.reply_text(
         f"🎁 {p} *{u.first_name}* claimed their Daily Reward!\n\n"
         f"💰 *+{fmt(amount)}* received!\n"
@@ -432,47 +467,79 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💵 *New Balance:* {fmt(new_bal)}",
         parse_mode=ParseMode.MARKDOWN
     )
-
+    
 async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     register_user(update)
+
     u = update.effective_user
 
     if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Reply to the person you want to rob! 😤")
+        await update.message.reply_text(
+            "❌ Reply to the person you want to rob! 😤"
+        )
         return
 
     # Amount check
     if not context.args:
-        await update.message.reply_text("❌ Usage: /rob <amount>")
+        await update.message.reply_text(
+            "❌ Usage: /rob <amount>"
+        )
         return
 
     if not context.args[0].isdigit():
-        await update.message.reply_text("❌ Please enter a valid amount!")
+        await update.message.reply_text(
+            "❌ Please enter a valid amount!"
+        )
         return
 
     rob_amount = int(context.args[0])
 
     if rob_amount <= 0:
-        await update.message.reply_text("❌ Amount must be greater than 0!")
+        await update.message.reply_text(
+            "❌ Amount must be greater than 0!"
+        )
         return
 
     target = update.message.reply_to_message.from_user
 
     if target.id == u.id or target.is_bot:
-        await update.message.reply_text("❌ You can't rob yourself or a bot! 😂")
+        await update.message.reply_text(
+            "❌ You can't rob yourself or a bot! 😂"
+        )
         return
 
     robber = get_user(u.id)
-    victim = get_user(target.id, name=target.full_name, username=target.username or '')
+
+    # Premium rob limit
+    if not robber.get('is_premium') and rob_amount > 10000:
+
+        await update.message.reply_text(
+            "💎 *Premium Required!*\n\n"
+            "❌ Normal users can rob only *10,000* at once.\n"
+            "🚀 Use /pay to buy Premium and rob unlimited amounts!",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
+    victim = get_user(
+        target.id,
+        name=target.full_name,
+        username=target.username or ''
+    )
 
     if robber.get('is_dead'):
-        await update.message.reply_text("❌ You are dead! Use /revive first! 💀")
+        await update.message.reply_text(
+            "❌ You are dead! Use /revive first! 💀"
+        )
         return
 
     now = int(time.time())
+
     rob_count = robber.get('rob_count', 0)
     rob_reset = robber.get('rob_reset', 0)
 
+    # Reset rob count daily
     if now - rob_reset >= 86400:
         rob_count = 0
         rob_reset = now
@@ -485,17 +552,22 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Protection check
     if victim.get('protection_until', 0) > now:
+
         prot_left = victim['protection_until'] - now
+
         h = prot_left // 3600
         m = (prot_left % 3600) // 60
 
         await update.message.reply_text(
-            f"🛡️ *{target.first_name}* is protected!\n⏰ Try again in {h}h {m}m",
+            f"🛡️ *{target.first_name}* is protected!\n"
+            f"⏰ Try again in {h}h {m}m",
             parse_mode=ParseMode.MARKDOWN
         )
         return
 
+    # Victim balance check
     if victim['balance'] <= 0:
         await update.message.reply_text(
             f"❌ *{target.first_name}* has nothing to steal! 💸",
@@ -503,8 +575,11 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Max rob limit check
-    max_rob = min(get_rob_max(robber), victim['balance'])
+    # Max rob check
+    max_rob = min(
+        get_rob_max(robber),
+        victim['balance']
+    )
 
     if rob_amount > max_rob:
         await update.message.reply_text(
@@ -512,10 +587,14 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Tax system
     tax = int(rob_amount * get_tax_rate(robber))
+
     net = rob_amount - tax
+
     xp_gain = random.randint(0, 100)
 
+    # Update robber
     update_user(
         u.id,
         balance=robber['balance'] + net,
@@ -524,6 +603,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rob_reset=rob_reset
     )
 
+    # Update victim
     update_user(
         target.id,
         balance=max(0, victim['balance'] - rob_amount)
@@ -532,22 +612,33 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p_r = prefix(robber)
     p_v = prefix(victim)
 
+    # Success message
     msg = await update.message.reply_text(
         f"🔫 *Rᴏʙ!*\n\n"
-        f"{p_r} *{u.first_name}* ɴᴇ {p_v} *{target.first_name}* ꜱᴇ *{fmt(rob_amount)}* loot liya!\n"
-        f"💸 Tax: {fmt(tax)} | 💰 Net: {fmt(net)}\n"
+        f"{p_r} *{u.first_name}* ɴᴇ "
+        f"{p_v} *{target.first_name}* ꜱᴇ "
+        f"*{fmt(rob_amount)}* loot liya!\n\n"
+        f"💸 Tax: {fmt(tax)}\n"
+        f"💰 Net Profit: {fmt(net)}\n"
         f"⚡ +{xp_gain} XP",
         parse_mode=ParseMode.MARKDOWN
     )
 
     asyncio.create_task(
-        schedule_delete(context, update.effective_chat.id, msg.message_id)
+        schedule_delete(
+            context,
+            update.effective_chat.id,
+            msg.message_id
+        )
     )
 
     asyncio.create_task(
-        schedule_delete(context, update.effective_chat.id, update.message.message_id)
+        schedule_delete(
+            context,
+            update.effective_chat.id,
+            update.message.message_id
+        )
     )
-
 
 async def kill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
@@ -951,43 +1042,106 @@ async def gift_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─── PREMIUM ─────────────────────────────────────────────────────────────────
 
 async def set_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     register_user(update)
+
     u = update.effective_user
+
     user = get_user(u.id)
+
+    # Premium check
     if not user.get('is_premium'):
-        await update.message.reply_text("❌ This command is for 💓 Premium users only! /pay")
-        return
 
-    msg_text = update.message.text or ''
-    entities = update.message.entities or []
-
-    # Detect Telegram Premium custom emoji entity (after the /setemoji command)
-    custom_emoji_id = None
-    fallback_char = None
-    for entity in entities:
-        if getattr(entity, 'type', None) == 'custom_emoji':
-            start = entity.offset
-            length = entity.length
-            # Extract the fallback character from the raw text
-            try:
-                char = msg_text[start: start + length]
-            except Exception:
-                char = '⭐'
-            custom_emoji_id = getattr(entity, 'custom_emoji_id', None)
-            fallback_char = char
-            break
-
-    if custom_emoji_id:
-        emoji_val = f"TGEM:{custom_emoji_id}:{fallback_char}"
-        update_user(u.id, premium_emoji=emoji_val)
-        preview = f'<tg-emoji emoji-id="{custom_emoji_id}">{escape_html(fallback_char)}</tg-emoji>'
         await update.message.reply_text(
-            f"✅ Your prefix is now this Telegram Premium emoji! {preview}\n"
-            f"<i>Others will see your animated emoji in /bal! ✨</i>",
-            parse_mode=ParseMode.HTML
+            "❌ This command is for 💓 Premium users only!\n"
+            "Use /pay to buy premium."
         )
         return
 
+    msg_text = update.message.text or ''
+
+    entities = update.message.entities or []
+
+    # -----------------------------
+    # Telegram Premium Emoji Check
+    # -----------------------------
+
+    custom_emoji_id = None
+    fallback_char = None
+
+    for entity in entities:
+
+        if getattr(entity, 'type', None) == 'custom_emoji':
+
+            start = entity.offset
+            length = entity.length
+
+            try:
+                char = msg_text[start:start + length]
+            except Exception:
+                char = "⭐"
+
+            custom_emoji_id = getattr(
+                entity,
+                'custom_emoji_id',
+                None
+            )
+
+            fallback_char = char
+
+            break
+
+    # Save Telegram Premium Emoji
+    if custom_emoji_id:
+
+        emoji_val = f"TGEM:{custom_emoji_id}:{fallback_char}"
+
+        update_user(
+            u.id,
+            premium_emoji=emoji_val
+        )
+
+        preview = (
+            f'<tg-emoji emoji-id="{custom_emoji_id}">'
+            f'{escape_html(fallback_char)}'
+            f'</tg-emoji>'
+        )
+
+        await update.message.reply_text(
+            f"✅ Your prefix is now this Telegram Premium emoji! "
+            f"{preview}\n\n"
+            f"<i>Others will see your animated emoji in /bal! ✨</i>",
+            parse_mode=ParseMode.HTML
+        )
+
+        return
+
+    # -----------------------------
+    # Normal Emoji Support
+    # -----------------------------
+
+    args = context.args
+
+    if not args:
+
+        await update.message.reply_text(
+            "❌ Usage:\n"
+            "/setemoji 😎\n"
+            "or send a Telegram Premium emoji."
+        )
+        return
+
+    normal_emoji = args[0]
+
+    # Save normal emoji
+    update_user(
+        u.id,
+        premium_emoji=normal_emoji
+    )
+
+    await update.message.reply_text(
+        f"✅ Your prefix emoji is now: {normal_emoji}"
+    )
 
 async def check_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_user(update)
