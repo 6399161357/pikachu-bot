@@ -6,6 +6,15 @@ import asyncio
 import json
 import logging
 
+from pymongo import MongoClient
+import os
+
+client = MongoClient(os.getenv("MONGO_DB_URI"))
+
+db = client["telegram_bot"]
+
+users = db["users"]
+
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
 )
